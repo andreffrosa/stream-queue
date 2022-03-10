@@ -4,7 +4,7 @@ services:
     stream-queue:
         build:
             context: .
-        image: stream-queue:latest
+        image: stream-queue
         container_name: stream-queue
         ports:
             - "8080:80"
