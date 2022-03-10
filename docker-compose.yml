@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+    stream-queue:
+        build:
+            context: .
+        image: stream-queue:latest
+        container_name: stream-queue
+        ports:
+            - "8080:80"
