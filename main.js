@@ -55,6 +55,17 @@ router.post('/enqueue', (req, res) => {
     }
 });
 
+router.get('/dequeue', (req, res) => {
+    var job = job_queue.pop();
+    if(job) {
+        job.Status = "IN_PROGRESS";
+
+        res.send(JSON.stringify(job) + "\n");
+    } else {
+        res.status(404).send('Empty Queue\n');
+    }
+});
+
 // Add the jobs router to the express app
 app.use("/jobs", router);
 
