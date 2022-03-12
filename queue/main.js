@@ -164,9 +164,3 @@ app.listen(port, () => {
 
     console.log(`Listening on port ${port} ...`);
 });
-
-/*
-Final notes:
-There should be a garbage collector or other mechanism to clean the concluded jobs from memory after a while.
-I did not implement such feature as I assumed it was not necessary for demonstration purposes.
-*/
