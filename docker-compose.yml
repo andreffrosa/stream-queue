@@ -6,6 +6,10 @@ services:
             context: ./queue
         image: stream-queue
         container_name: stream-queue
+        environment:
+            GC_ON: "true"
+            GC_INTERVAL_S: "10"
+            GC_VALIDITY_S: "10"
         restart: unless-stopped
         ports:
             - "8080:80"
@@ -16,6 +20,7 @@ services:
         container_name: tester
         environment:
             QUEUE_URL: "http://stream-queue:80/" # why 80 instead 8080 ?
+            SLEEP: "35"
         restart: "no"
         depends_on:
             - stream-queue

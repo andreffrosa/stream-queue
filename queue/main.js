@@ -3,6 +3,11 @@ const app = express();
 const bodyParser = require("body-parser");
 const port = 80;
 
+const GC_ON = (process.env.GC_ON ? process.env.GC_ON : true) == "true";
+const GC_INTERVAL_S = Number(process.env.GC_INTERVAL_S ? process.env.GC_INTERVAL_S : 60);
+const GC_VALIDITY_S = Number(process.env.GC_VALIDITY_S ? process.env.GC_VALIDITY_S : 60);
+
+
 // Configure Express
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
@@ -41,12 +46,31 @@ function isValidJob(job) {
     return false;
 }
 
+async function GarbageCollector() {
+    var deleted = 0;
+    for (job_id in jobs) {
+        var job = jobs[job_id];
+
+        // Job is concluded and expired
+        if(job.Status == "CONCLUDED" && job.ConcludedTS && (job.ConcludedTS + GC_VALIDITY_S*1000 <= Date.now())) {
+            log("DELETE", job);
+
+            delete jobs[job.ID];
+            delete job;
+
+            deleted++;
+        }
+    }
+
+    log("GC", `Deleted ${deleted} jobs`);
+}
+
 // API Endpoints
 router.post('/enqueue', (req, res) => {
     if(isValidJob(req.body)) {
         // Add new job to queue
         var job_id = nextJobID();
-        var job = { ID: job_id, Status: "QUEUED", ts: Date.now(), ...req.body };
+        var job = { ID: job_id, Status: "QUEUED", CreatedTS: Date.now(), ...req.body };
 
         jobs[job_id] = job;
         job_queue.unshift(job);
@@ -90,6 +114,7 @@ router.post('/:id/conclude', (req, res) => {
                 if(job.Status == "IN_PROGRESS") {
                     if(job.ConsumerID == consumer_id) {
                         job.Status = "CONCLUDED";
+                        job.ConcludedTS = Date.now();
 
                         log('CONCLUDE', job);
 
@@ -132,6 +157,11 @@ app.use("/jobs", router);
 
 // Start API Server
 app.listen(port, () => {
+
+    // Start GarbageCollector
+    if(GC_ON)
+        setInterval(GarbageCollector, GC_INTERVAL_S*1000);
+
     console.log(`Listening on port ${port} ...`);
 });
 

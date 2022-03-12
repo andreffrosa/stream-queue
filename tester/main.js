@@ -60,6 +60,11 @@ async function main() {
         res = await axios.post(queue_url + 3 + "/conclude", "", hx(1)).catch(err => err?.response);
         assert(res.status == 404);
 
+        // Wait for GC
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const sec = Number(process.env.SLEEP ? process.env.SLEEP : 60);
+        await sleep(sec*1000); // 3 min
+
         console.log("All tests passed!");
     } catch (err) {
         console.error(err);
