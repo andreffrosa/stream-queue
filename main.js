@@ -42,7 +42,7 @@ router.post('/enqueue', (req, res) => {
     if(isValidJob(req.body)) {
         // Add new job to queue
         var job_id = nextJobID();
-        var job = { "ID": job_id, "Status": "QUEUED", ...req.body };
+        var job = { ID: job_id, Status: "QUEUED", ts: Date.now(), ...req.body };
 
         jobs[job_id] = job;
         job_queue.unshift(job);
@@ -63,6 +63,46 @@ router.get('/dequeue', (req, res) => {
         res.send(JSON.stringify(job) + "\n");
     } else {
         res.status(404).send('Empty Queue\n');
+    }
+});
+
+router.post('/:id/conclude', (req, res) => {
+    var job_id = req.params.id;
+
+    // If job_id is a number
+    if(!isNaN(job_id)) {
+        var job = jobs[job_id];
+        if(job) {
+            if(job.Status == "IN_PROGRESS") {
+                job.Status = "CONCLUDED";
+
+                console.log(job);
+
+                res.end();
+            } else {
+                res.status(400).send('Job not in Progress\n');
+            }
+        } else {
+            res.status(404).send('Unknown Job\n');
+        }
+    } else {
+        res.status(400).send('Invalid Job ID\n');
+    }
+});
+
+router.get('/:id', (req, res) => {
+    var job_id = req.params.id;
+
+    // If job_id is a number
+    if(!isNaN(job_id)) {
+        var job = jobs[job_id];
+        if(job) {
+            res.send(JSON.stringify(job) + "\n");
+        } else {
+            res.status(404).send('Unknown Job\n');
+        }
+    } else {
+        res.status(400).send('Invalid Job ID\n');
     }
 });
 
