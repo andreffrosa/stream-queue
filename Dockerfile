@@ -8,4 +8,4 @@ COPY ["./main.js", "."]
 
 EXPOSE 80/tcp
 
-ENTRYPOINT ["node", "main.js"]
+CMD ["node", "main.js"]
