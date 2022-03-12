@@ -18,8 +18,12 @@ var job_queue = [];
 const job_types = ["TIME_CRITICAL", "NOT_TIME_CRITICAL"];
 const job_statuses = ["QUEUED", "IN_PROGRESS", "CONCLUDED"];
 
-
 // Auxiliary Functions
+
+function log(title, message) {
+    var msg = typeof message === 'object' ? JSON.stringify(message, null, 0).replace(/"([^"]+)":/g, '$1:').replace(/\uFFFF/g, '\\\"').replace(/,/g, ", ") : message;
+    console.log(`[${(new Date()).toISOString()}] [${title}] : ${msg}`);
+}
 
 function nextJobID() {
     return ++job_counter;
@@ -47,7 +51,7 @@ router.post('/enqueue', (req, res) => {
         jobs[job_id] = job;
         job_queue.unshift(job);
 
-        console.log(job);
+        log('ENQUEUE', job);
 
         res.send(job_id.toString() + "\n");
     } else {
@@ -56,37 +60,54 @@ router.post('/enqueue', (req, res) => {
 });
 
 router.get('/dequeue', (req, res) => {
-    var job = job_queue.pop();
-    if(job) {
-        job.Status = "IN_PROGRESS";
+    var consumer_id = req.get("QUEUE_CONSUMER");
+    if(consumer_id) {
+        var job = job_queue.pop();
+        if(job) {
+            job.Status = "IN_PROGRESS";
+            job.ConsumerID = consumer_id;
 
-        res.send(JSON.stringify(job) + "\n");
+            log('DEQUEUE', job);
+
+            res.send(JSON.stringify(job) + "\n");
+        } else {
+            res.status(404).send('Empty Queue\n');
+        }
     } else {
-        res.status(404).send('Empty Queue\n');
+        res.status(400).send('Missing QUEUE_CONSUMER Header\n');
     }
 });
 
 router.post('/:id/conclude', (req, res) => {
     var job_id = req.params.id;
+    var consumer_id = req.get("QUEUE_CONSUMER");
 
-    // If job_id is a number
-    if(!isNaN(job_id)) {
-        var job = jobs[job_id];
-        if(job) {
-            if(job.Status == "IN_PROGRESS") {
-                job.Status = "CONCLUDED";
+    if(consumer_id) {
+        // If job_id is a number
+        if(!isNaN(job_id)) {
+            var job = jobs[job_id];
+            if(job) {
+                if(job.Status == "IN_PROGRESS") {
+                    if(job.ConsumerID == consumer_id) {
+                        job.Status = "CONCLUDED";
 
-                console.log(job);
+                        log('CONCLUDE', job);
 
-                res.end();
+                        res.end();
+                    } else {
+                        res.status(400).send('Wrong QUEUE_CONSUMER\n');
+                    }
+                } else {
+                    res.status(400).send('Job not in Progress\n');
+                }
             } else {
-                res.status(400).send('Job not in Progress\n');
+                res.status(404).send('Unknown Job\n');
             }
         } else {
-            res.status(404).send('Unknown Job\n');
+            res.status(400).send('Invalid Job ID\n');
         }
     } else {
-        res.status(400).send('Invalid Job ID\n');
+        res.status(400).send('Missing QUEUE_CONSUMER Header\n');
     }
 });
 
@@ -112,4 +133,10 @@ app.use("/jobs", router);
 // Start API Server
 app.listen(port, () => {
     console.log(`Listening on port ${port} ...`);
-})
+});
+
+/*
+Final notes:
+There should be a garbage collector or other mechanism to clean the concluded jobs from memory after a while.
+I did not implement such feature as I assumed it was not necessary for demonstration purposes.
+*/
